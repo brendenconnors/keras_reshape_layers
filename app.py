@@ -54,22 +54,22 @@ layers = {
      (batch_size, channels, spatial_dim1, spatial_dim2, spatial_dim3). It defaults to the image_data_format value found in your Keras config file at ~/.keras/keras.json. 
      If you never set it, then it will be "channels_last"."""]
     },
-    "Upsampling1D":{
+    "UpSampling1D":{
         "args":["size"],
-        "descriptions":["size: Integer. Upsampling factor."]
+        "descriptions":["size: Integer. UpSampling factor."]
     },
-    "Upsampling2D":{
+    "UpSampling2D":{
         "args":["size", "data_format", "interpolation"],
-        "descriptions":["size: Int, or tuple of 2 integers. The upsampling factors for rows and columns.",
+        "descriptions":["size: Int, or tuple of 2 integers. The UpSampling factors for rows and columns.",
         """data_format: A string, one of channels_last (default) or channels_first. The ordering of the dimensions in the inputs. 
         channels_last corresponds to inputs with shape (batch_size, height, width, channels) while channels_first corresponds to inputs with 
         shape (batch_size, channels, height, width). It defaults to the image_data_format value found in your Keras config file at ~/.keras/keras.json. 
         If you never set it, then it will be "channels_last".""",
         """interpolation: A string, one of "area", "bicubic", "bilinear", "gaussian", "lanczos3", "lanczos5", "mitchellcubic", "nearest"."""]
     },
-    "Upsampling3D":{
+    "UpSampling3D":{
         "args":["size","data_format"],
-        "descriptions":["size: Int, or tuple of 3 integers. The upsampling factors for dim1, dim2 and dim3.",
+        "descriptions":["size: Int, or tuple of 3 integers. The UpSampling factors for dim1, dim2 and dim3.",
         """data_format: A string, one of channels_last (default) or channels_first. The ordering of the dimensions in the inputs. 
         channels_last corresponds to inputs with shape (batch_size, spatial_dim1, spatial_dim2, spatial_dim3, channels) while 
         channels_first corresponds to inputs with shape (batch_size, channels, spatial_dim1, spatial_dim2, spatial_dim3). 
@@ -106,7 +106,18 @@ layers = {
     }
 }
 with gr.Blocks() as demo:
-    gr.Markdown("WEE")
+    gr.Markdown(f'![Keras](https://res.cloudinary.com/crunchbase-production/image/upload/c_lpad,h_256,w_256,f_auto,q_auto:eco,dpr_1/x3gdrogoamvuvjemehbr)')
+    gr.Markdown("# Reshaping Layers")
+    gr.Markdown("""This app allows you to play with various Keras Reshaping layers, and is meant to be a
+    supplement to the documentation. You are free to change the layer, tensor/array shape, and arguments associated 
+    with that layer. Execution will show you the command used as well as your resulting array/tensor.
+
+    Keras documentation can be found [here](https://keras.io/api/layers/reshaping_layers/).<br>
+    App built by [Brenden Connors](https://github.com/brendenconnors).<br>
+    Built using keras==2.9.0.
+
+    <br><br><br>""")
+    
     with gr.Row():
         with gr.Column():
             layers_dropdown = gr.Dropdown(choices=list(layers.keys()), value="Reshape", label="Keras Layer")
@@ -142,8 +153,8 @@ with gr.Blocks() as demo:
                     visible = False
                     )
 
-                button = gr.Button("Generate Array")                   
-            input_arr = gr.Textbox(label = "Input Array",
+                button = gr.Button("Generate Tensor")                   
+            input_arr = gr.Textbox(label = "Input Tensor",
             interactive = False,
             value = np.array([[1,2],[3,4]]))
             with gr.Box():
@@ -158,26 +169,38 @@ with gr.Blocks() as demo:
                     desc3 = gr.Textbox(label = '', visible=False)
             result_button = gr.Button("Execute")
         with gr.Column():
-            output = gr.Textbox()
-            output2 = gr.Textbox()
-    def generate_arr(data):
-        data = data[0]
-        rows = data[0]
-        columns = data[0]
-        channels = data[0]
+            output = gr.Textbox(label = 'Command Used')
+            output2 = gr.Textbox(label = 'Result')
+
+    def generate_arr(layer, data1, data2, data3):
+        """
+        Create Input tensor
+        """
+        if '1D' in layer:
+            data = data1[0]
+
+        elif '2D' in layer:
+            data = data2[0]
+
+        elif '3D' in layer:
+            data = data3[0]
+
+        elif layer=="RepeatVector":
+            data = data1[0]
+
+        else:
+            data = data2[0]
+
 
         shape = tuple([int(x) for x in data if int(x)!=0])
         elements = [x+1 for x in range(np.prod(shape))]
         return np.array(elements).reshape(shape)
 
-    def is_array(a,b,c,d,e):
-        try:
-            a = np.array(list(a))
-        except:
-            return None
-        return a.shape
 
     def add_dim(layer):
+        """
+        Adjust dimensions component dependent on layer type
+        """
         if '1D' in layer:
             return gr.DataFrame.update(visible=True), gr.DataFrame.update(visible=False), gr.DataFrame.update(visible=False)
         elif '2D' in layer:
@@ -188,7 +211,11 @@ with gr.Blocks() as demo:
             return gr.DataFrame.update(visible=True), gr.DataFrame.update(visible=False), gr.DataFrame.update(visible=False)
         return gr.DataFrame.update(visible=False), gr.DataFrame.update(visible=True), gr.DataFrame.update(visible=False)
 
+
     def change_args(layer):
+        """
+        Change layer args dependent on layer name
+        """
         n_args = len(layers[layer]["args"])
         args = layers[layer]["args"]
         descriptions = layers[layer]["descriptions"]
@@ -203,42 +230,62 @@ with gr.Blocks() as demo:
                 gr.Textbox.update(value = descriptions[2], visible = visible_bool[2])
         
     def create_layer(layer_name, arg1, arg2, arg3):
+        """
+        Create layer given layer name and args
+        """
         args = [arg1, arg2, arg3]
         real_args = [x for x in args if x != '']
         arg_str = ','.join(real_args)
-        #layer = eval(f"keras.layers.{layer_name}({real_args})")
+
         return f"keras.layers.{layer_name}({arg_str})"
 
+
     def execute(layer_name, arg1, arg2, arg3, shape1, shape2, shape3):
+        """
+        Execute keras reshaping layer given input tensor
+        """
         args = [arg1, arg2, arg3]
         real_args = [x for x in args if x != '']
         arg_str = ','.join(real_args)
-        layer = eval(f"keras.layers.{layer_name}({arg_str})")
+        try:
+            layer = eval(f"keras.layers.{layer_name}({arg_str})")
+        except Exception as e:
+            return f"Error: {e}"
 
-        def arr(data):
-            shape = tuple([int(x) for x in data[0] if int(x)!=0])
+        def arr(data, layer_name):
+            if layer_name == "RepeatVector":
+                shape = tuple([int(x) for x in data[0] if int(x)!=0])
+            else:
+                shape = tuple([1] + [int(x) for x in data[0] if int(x)!=0])
             elements = [x+1 for x in range(np.prod(shape))]
             return np.array(elements).reshape(shape)
 
         if '1D' in layer_name:
-            inp = arr(shape1)
+            inp = arr(shape1, layer_name)
         elif '2D' in layer_name:
-            inp = arr(shape2)
+            inp = arr(shape2, layer_name)
         elif '3D' in layer_name:
-            inp = arr(shape3)
+            inp = arr(shape3, layer_name)
         elif layer_name=="RepeatVector":
-            inp = arr(shape1)
+            inp = arr(shape1, layer_name)
         else:
-            inp = arr(shape2)
+            inp = arr(shape2, layer_name)
 
-        return layer(inp)
+        try:
+            return layer(inp)
+        except Exception as e:
+            return e
 
-    button.click(generate_arr, desired_shape3d, input_arr)
+    # Generate tensor
+    button.click(generate_arr, [layers_dropdown, desired_shape2d, desired_shape3d, desired_shape4d], input_arr)
+
+    # All changes dependent on layer selected
     layers_dropdown.change(add_dim, layers_dropdown, [desired_shape2d, desired_shape3d, desired_shape4d])
-    input_arr.change(is_array, [input_arr, layers_dropdown, arg1, arg2, arg3], output)
     layers_dropdown.change(change_args, layers_dropdown, [arg1, arg2, arg3, desc1, desc2, desc3])
+    layers_dropdown.change(generate_arr, [layers_dropdown, desired_shape2d, desired_shape3d, desired_shape4d], input_arr)
+    
+    # Show command used and execute it
     result_button.click(create_layer, [layers_dropdown, arg1, arg2, arg3], output)
     result_button.click(execute, [layers_dropdown, arg1, arg2, arg3, desired_shape2d, desired_shape3d, desired_shape4d], output2)
 
 demo.launch()
-#if __name__ == "__main__":
